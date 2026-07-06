@@ -1,24 +1,34 @@
-# Compilador padrão no macOS (Clang)
+# Descobre o caminho do SDK do macOS dinamicamente no servidor do GitHub
+SDKPATH = $(shell xcrun --show-sdk-path)
+KERNEL_HEADERS = $(SDKPATH)/System/Library/Frameworks/Kernel.framework/Headers
+
 CXX = clang++
 
-# Flags de compilação para C++17
-CXXFLAGS = -Wall -std=c++17 -g
+# Flags obrigatórias para desenvolvimento de Kernel (Kext) no Mac
+CXXFLAGS = -mkernel \
+           -fno-builtin \
+           -fno-rtti \
+           -fno-exceptions \
+           -Wall \
+           -std=c++17 \
+           -g \
+           -isysroot $(SDKPATH) \
+           -I$(KERNEL_HEADERS) \
+           -I.
 
-# Nome do binário de teste (no Mac não usamos a extensão .exe)
-TARGET = teste_driver
-
-# Deteta automaticamente todos os ficheiros .cpp da tua pasta
+# Pega todos os arquivos .cpp da sua pasta (RTL8723BE_Driver.cpp e RTL8723BE.cpp)
 SRCS = $(wildcard *.cpp)
 OBJS = $(SRCS:.cpp=.o)
 
-all: $(TARGET)
+# Alvo principal: compila os objetos para validar a sintaxe do código
+all: $(OBJS)
+	@echo "========================================================================="
+	@echo "Boa, Vini! O GitHub Actions validou a sintaxe de todos os arquivos .cpp!"
+	@echo "========================================================================="
 
-$(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
-
+# Regra para compilar cada arquivo .cpp em um objeto .o
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-# Comando de limpeza universal para Mac e Linux
 clean:
-	rm -f $(TARGET) *.o
+	rm -f *.o
