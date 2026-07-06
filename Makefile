@@ -1,10 +1,10 @@
-# Descobre o caminho do SDK do macOS dinamicamente no servidor
+# Mapeia dinamicamente os caminhos do SDK do Mac no servidor do GitHub
 SDKPATH = $(shell xcrun --show-sdk-path)
 KERNEL_HEADERS = $(SDKPATH)/System/Library/Frameworks/Kernel.framework/Headers
 
 CXX = clang++
 
-# Flags corrigidas: -DKERNEL e -DAPPLE ativam o modo Kext clássica no SDK da Apple
+# Flags oficiais para o Kernel, silenciando avisos internos do SDK da Apple
 CXXFLAGS = -mkernel \
            -DKERNEL \
            -DAPPLE \
@@ -12,13 +12,13 @@ CXXFLAGS = -mkernel \
            -fno-rtti \
            -fno-exceptions \
            -Wall \
+           -Wno-inconsistent-missing-override \
            -std=c++17 \
            -g \
            -isysroot $(SDKPATH) \
            -I$(KERNEL_HEADERS) \
            -I.
 
-# Pega automaticamente RTL8723BE_Driver.cpp e RTL8723BE.cpp
 SRCS = $(wildcard *.cpp)
 OBJS = $(SRCS:.cpp=.o)
 
