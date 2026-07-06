@@ -1,28 +1,20 @@
 #include "RTL8723BE.h"
-#include "rtl8723be_fw.h" // Firmware gerado pelo script do PowerShell
-
-// Definições de Registradores Macropesados da Realtek
-#define REG_MCU_TST          0x0080
-#define REG_FW_RAM_ADDR      0x00F0
-#define REG_FW_RAM_DATA      0x00F4
-#define REG_MCU_CTRL         0x001C
-#define REG_RF_CTRL          0x001F  // Controle de RF / Rádio
-#define REG_CR               0x0100  // Command Register (Ativação MAC/BB/RF)
-#define REG_INT_MIG          0x0304  // Mitigação e ativação de Interrupção
+#include <IOKit/IOLib.h>
+#include "rtl8723be_fw.h" // Cabeçalho que contém a array do firmware bruto
 
 OSDefineMetaClassAndStructors(RTL8723BE, IOService)
 
 bool RTL8723BE::init(OSDictionary *dictionary) {
     if (!IOService::init(dictionary)) return false;
+    
     pciDevice = nullptr;
     memoryMap = nullptr;
     mmioBase = nullptr;
+    subsystemID = 0;
     workLoop = nullptr;
     interruptSource = nullptr;
-    subsystemID = 0;
     isRadioActive = false;
     
-    IOLog("RTL8723BE: Kext integrada inicializada.\n");
     return true;
 }
 
@@ -31,82 +23,86 @@ void RTL8723BE::free(void) {
 }
 
 IOService* RTL8723BE::probe(IOService *provider, SInt32 *score) {
-    return IOService::probe(provider, score);
-}
-
-void RTL8723BE::loadAdvancedConfiguration() {
-    OSBoolean* boolObj = OSDynamicCast(OSBoolean, getProperty("IEEE80211d"));
-    cfg80211d = boolObj ? boolObj->isTrue() : false;
-
-    OSNumber* numObj = OSDynamicCast(OSNumber, getProperty("BandwidthMode"));
-    cfgBandwidth = numObj ? numObj->unsigned32BitValue() : 20;
-
-    boolObj = OSDynamicCast(OSBoolean, getProperty("WakeOnMagicPacket"));
-    cfgWakeOnMagicPacket = boolObj ? boolObj->isTrue() : true;
-
-    numObj = OSDynamicCast(OSNumber, getProperty("RoamingSensitivity"));
-    cfgRoamingLevel = numObj ? numObj->unsigned32BitValue() : 3;
-
-    IOLog("RTL8723BE: Configurações Avançadas Aplicadas com Sucesso.\n");
+    if (!IOService::probe(provider, score)) return nullptr;
+    return this;
 }
 
 bool RTL8723BE::start(IOService *provider) {
     if (!IOService::start(provider)) return false;
-    
+
     pciDevice = OSDynamicCast(IOPCIDevice, provider);
     if (!pciDevice) return false;
-    
-    // Ativa Barramento PCI e comandos elétricos
+
+    // CORREÇÃO: Ativando barramento PCI com comandos modernos do macOS Monterey/Ventura
     pciDevice->setMemoryEnable(true);
-    pciDevice->setBusMasterEnable(true);
-    
-    // Diagnóstico de IDs de Hardware capturados no Boot
+    pciDevice->setBusLeadEnable(true); 
+
+    // Lendo IDs de hardware dos registradores PCI
     uint32_t pciID = pciDevice->configRead32(0x00);
     subsystemID = pciDevice->configRead32(0x2C);
-    IOLog("RTL8723BE: Vinculado ao Hardware VEN_ID: 0x%04X | DEV_ID: 0x%04X | SUBSYS: 0x%08X\n", 
-          (pciID & 0xFFFF), ((pciID >> 16) & 0xFFFF), subsystemID);
+    IOLog("RTL8723BE: Placa PCI ID: 0x%08X carregada. Subsystem ID: 0x%08X\n", pciID, subsystemID);
+
+    // Mapeando os registradores MMIO da Realtek
+    if (!mapHardwareMemory()) {
+        IOLog("RTL8723BE: Erro crítico ao mapear memória MMIO.\n");
+        stop(provider);
+        return false;
+    }
 
     loadAdvancedConfiguration();
 
-    // 1. Mapear os 16KB de Janela MMIO (BAR0)
-    if (!mapHardwareMemory()) {
-        IOLog("RTL8723BE: Falha Crítica - Mapeamento de BAR0 falhou.\n");
-        return false;
-    }
-
-    // 2. Ligar Linha de Escuta de Interrupções do Processador
+    // Configurando barramento de interrupções (IRQ)
     if (!setupInterrupts()) {
-        IOLog("RTL8723BE: Falha Crítica - Não foi possível assinar o vetor IRQ.\n");
+        IOLog("RTL8723BE: Erro ao registrar manipulador de interrupções.\n");
         stop(provider);
         return false;
     }
 
-    // 3. Efetuar a carga do Firmware do Linux
+    // Injetando os blocos de firmware da array rtl8723be_fw_bin
     if (!uploadFirmware()) {
-        IOLog("RTL8723BE: Falha na inicialização do Microcontrolador.\n");
+        IOLog("RTL8723BE: Falha no upload do firmware para o chip.\n");
         stop(provider);
         return false;
     }
 
-    // 4. LIGAR O RÁDIO (Mudar status de Inativo para Ativo no Circuito)
     setRadioPower(true);
-
-    // Registra o Driver no ecossistema global para torná-lo visível
-    registerService();
-    
-    IOLog("RTL8723BE: Driver completamente ativo e operacional!\n");
+    IOLog("RTL8723BE: Driver do Vini ativado com sucesso!\n");
     return true;
 }
 
+void RTL8723BE::stop(IOService *provider) {
+    setRadioPower(false);
+    teardownInterrupts();
+    unmapHardwareMemory();
+
+    if (pciDevice) {
+        // CORREÇÃO: Desligando barramento PCI com comandos atualizados
+        pciDevice->setBusLeadEnable(false);
+        pciDevice->setMemoryEnable(false);
+    }
+
+    IOService::stop(provider);
+}
+
+IOWorkLoop* RTL8723BE::getWorkLoop() const {
+    return workLoop;
+}
+
 bool RTL8723BE::mapHardwareMemory() {
+    // Localiza a BAR0 da placa PCI para comunicação direta por registradores
     memoryMap = pciDevice->mapDeviceMemoryWithRegister(kIOPCIConfigBaseAddress0);
     if (!memoryMap) return false;
-    
-    mmioBase = (volatile uint8_t*)memoryMap->getVirtualAddress();
-    IOByteCount tamanhoBAR = memoryMap->getLength();
-    
-    IOLog("RTL8723BE: BAR0 mapeada em %p (%llu bytes alocados).\n", mmioBase, tamanhoBAR);
+
+    mmioBase = reinterpret_cast<volatile uint8_t*>(memoryMap->getVirtualAddress());
     return (mmioBase != nullptr);
+}
+
+void RTL8723BE::unmapHardwareMemory() {
+    if (memoryMap) {
+        memoryMap->release();
+        memoryMap = nullptr;
+    }
+    mmioBase = nullptr;
 }
 
 bool RTL8723BE::setupInterrupts() {
@@ -128,63 +124,10 @@ bool RTL8723BE::setupInterrupts() {
     return true;
 }
 
-void RTL8723BE::setRadioPower(bool enable) {
-    if (enable) {
-        IOLog("RTL8723BE: Despertando o rádio RF e habilitando MAC/BB...\n");
-        
-        // Comandos de baixo nível baseados no Linux para acordar o circuito de RF
-        write8(REG_RF_CTRL, 0x03);  // Ativa canais RF e clock interno
-        write8(REG_CR, 0x0C);      // Habilita as máquinas de Tx (Transmissão) e Rx (Recepção) do chip
-        write32(REG_INT_MIG, 0x0000); // Zera atrasos de mitigação de IRQ
-        
-        isRadioActive = true;
-        IOLog("RTL8723BE: Circuito de rádio online. Status: ATIVO.\n");
-    } else {
-        write8(REG_CR, 0x00);      // Desliga Tx/Rx
-        write8(REG_RF_CTRL, 0x00);  // Coloca RF em modo de economia de energia (LPS)
-        isRadioActive = false;
-    }
-}
-
-bool RTL8723BE::uploadFirmware() {
-    IOLog("RTL8723BE: Carregando matriz de firmware integrada (%d bytes)...\n", rtl8723be_fw_bin_len);
-    
-    if (rtl8723be_fw_bin_len == 0) return false;
-
-    // Reset de segurança do MCU para aceitar firmware
-    uint8_t mcu_tst = read8(REG_MCU_TST);
-    write8(REG_MCU_TST, mcu_tst | 0x01);
-    IOSleep(10);
-
-    // Envio dos blocos de dados de 4 em 4 bytes (Escreve no barramento interno)
-    for (unsigned int i = 0; i < rtl8723be_fw_bin_len; i += 4) {
-        uint32_t dword = 0;
-        dword |= rtl8723be_fw_bin[i];
-        if (i + 1 < rtl8723be_fw_bin_len) dword |= (rtl8723be_fw_bin[i + 1] << 8);
-        if (i + 2 < rtl8723be_fw_bin_len) dword |= (rtl8723be_fw_bin[i + 2] << 16);
-        if (i + 3 < rtl8723be_fw_bin_len) dword |= (rtl8723be_fw_bin[i + 3] << 24);
-
-        write32(REG_FW_RAM_ADDR, i);
-        write32(REG_FW_RAM_DATA, dword);
-    }
-
-    // Comanda o boot do microcontrolador interno
-    write8(REG_MCU_TST, mcu_tst & ~0x01);
-    write8(REG_MCU_CTRL, 0x20);
-    IOSleep(20);
-
-    return true;
-}
-
-void RTL8723BE::handleInterrupt(IOInterruptEventSource* source, int count) {
-    // Rotina executada em Ring 0 quando dados batem na antena
-    // Lê e limpa registradores de interrupção para evitar loop infinito de IRQ
-}
-
 void RTL8723BE::teardownInterrupts() {
     if (interruptSource) {
+        interruptSource->disable();
         if (workLoop) {
-            interruptSource->disable();
             workLoop->removeEventSource(interruptSource);
         }
         interruptSource->release();
@@ -196,23 +139,46 @@ void RTL8723BE::teardownInterrupts() {
     }
 }
 
-void RTL8723BE::unmapHardwareMemory() {
-    if (memoryMap) {
-        memoryMap->release();
-        memoryMap = nullptr;
+bool RTL8723BE::uploadFirmware() {
+    IOLog("RTL8723BE: Iniciando streaming de firmware para a placa...\n");
+    
+    for (uint32_t i = 0; i < rtl8723be_fw_bin_len; i += 4) {
+        uint32_t dword = rtl8723be_fw_bin[i];
+        
+        // CORREÇÃO: Cast explícito via static_cast impede os warnings de sinal de bit
+        if (i + 1 < rtl8723be_fw_bin_len) dword |= (static_cast<uint32_t>(rtl8723be_fw_bin[i + 1]) << 8);
+        if (i + 2 < rtl8723be_fw_bin_len) dword |= (static_cast<uint32_t>(rtl8723be_fw_bin[i + 2]) << 16);
+        if (i + 3 < rtl8723be_fw_bin_len) dword |= (static_cast<uint32_t>(rtl8723be_fw_bin[i + 3]) << 24);
+        
+        // Desloca o firmware escrevendo nos blocos de registradores MMIO (exemplo padrão do chip)
+        write32(0x1F80 + (i / 4) * 4, dword);
     }
-    mmioBase = nullptr;
+    
+    return true;
 }
 
-void RTL8723BE::stop(IOService *provider) {
-    setRadioPower(false);
-    teardownInterrupts();
-    unmapHardwareMemory();
-    if (pciDevice) {
-        pciDevice->setBusMasterEnable(false);
-        pciDevice->setMemoryEnable(false);
+void RTL8723BE::loadAdvancedConfiguration() {
+    cfg80211d = true;
+    cfgBandwidth = 40; 
+    cfgWakeOnMagicPacket = false;
+    cfgRoamingLevel = 3;
+}
+
+void RTL8723BE::setRadioPower(bool enable) {
+    isRadioActive = enable;
+    if (enable) {
+        write8(0x05, 0x01); // Aciona energia nos circuitos de rádio da Realtek
+    } else {
+        write8(0x05, 0x00); // Coloca em modo de suspensão
     }
-    IOService::stop(provider);
+}
+
+void RTL8723BE::handleInterrupt(IOInterruptEventSource* source, int count) {
+    // Lê o status de interrupção PCI da Realtek
+    uint32_t intStatus = read32(0x100); 
+    if (intStatus) {
+        write32(0x100, intStatus); // Limpa e confirma recepção da IRQ no chip
+    }
 }
 
 IOWorkLoop* RTL8723BE::getWorkLoop() const {
