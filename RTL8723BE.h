@@ -1,18 +1,10 @@
 #ifndef RTL8723BE_H
 #define RTL8723BE_H
 
-// 1. CORREÇÃO: Adicionados os cabeçalhos base do Kernel antes de tudo
-// Isso resolve os erros de 'OSClassLoadInformation' e 'New' no ambiente do GitHub
 #include <libkern/libkern.h>
-#include <libkern/OSMetaClass.h>
-
 #include <IOKit/IOService.h>
 #include <IOKit/pci/IOPCIDevice.h>
-
-// 2. CORREÇÃO: Removido o IOMemoryMap.h e substituído pelo Descriptor
-// A classe IOMemoryMap que você usa abaixo é definida automaticamente aqui dentro
-#include <IOKit/IOMemoryDescriptor.h> 
-
+#include <IOKit/IOMemoryDescriptor.h> // Substitui o IOMemoryMap.h que não existia separado
 #include <IOKit/IOWorkLoop.h>
 #include <IOKit/IOInterruptEventSource.h>
 
