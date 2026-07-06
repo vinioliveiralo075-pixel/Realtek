@@ -3,44 +3,35 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
-    <key>CFBundleExecutable</key>
-    <string>$(EXECUTABLE_NAME)</string>
+    <string>English</string>
     <key>CFBundleIdentifier</key>
-    <string>com.projeto.RTL8723BE</string>
+    <string>com.vini.driver.RTL8723BE</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>$(PRODUCT_NAME)</string>
+    <string>RTL8723BE</string>
     <key>CFBundlePackageType</key>
     <string>KEXT</string>
     <key>CFBundleShortVersionString</key>
     <string>1.0.0</string>
+    <key>CFBundleSignature</key>
+    <string>????</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>1.0.0</string>
     <key>IOKitPersonalities</key>
     <dict>
-        <key>RealtekRTL8723BE</key>
+        <key>RTL8723BE Wireless Adapter</key>
         <dict>
             <key>CFBundleIdentifier</key>
-            <string>com.projeto.RTL8723BE</string>
+            <string>com.vini.driver.RTL8723BE</string>
             <key>IOClass</key>
             <string>RTL8723BE</string>
-            <key>IOPCIMatch</key>
+            <key>IOMatchCategory</key>
+            <string>RTL8723BE</string>
+            <key>IOPCIPrimaryMatch</key>
             <string>0xB72310EC</string>
             <key>IOProviderClass</key>
             <string>IOPCIDevice</string>
-            
-            <key>IEEE80211d</key>
-            <false/>
-            <key>BandwidthMode</key>
-            <integer>20</integer>
-            <key>WirelessMode</key>
-            <string>Auto</string>
-            <key>WakeOnMagicPacket</key>
-            <true/>
-            <key>RoamingSensitivity</key>
-            <integer>3</integer>
         </dict>
     </dict>
     <key>OSBundleLibraries</key>
@@ -49,7 +40,7 @@
         <string>1.0.0b1</string>
         <key>com.apple.kpi.iokit</key>
         <string>8.0.0</string>
-        <key>com.apple.kpi.libcm</key>
+        <key>com.apple.kpi.libkern</key>
         <string>8.0.0</string>
     </dict>
 </dict>
