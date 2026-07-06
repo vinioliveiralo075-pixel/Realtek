@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.projeto.RTL8723BE</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>KEXT</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>IOKitPersonalities</key>
+    <dict>
+        <key>RealtekRTL8723BE</key>
+        <dict>
+            <key>CFBundleIdentifier</key>
+            <string>com.projeto.RTL8723BE</string>
+            <key>IOClass</key>
+            <string>RTL8723BE</string>
+            <key>IOPCIMatch</key>
+            <string>0xB72310EC</string>
+            <key>IOProviderClass</key>
+            <string>IOPCIDevice</string>
+            
+            <key>IEEE80211d</key>
+            <false/>
+            <key>BandwidthMode</key>
+            <integer>20</integer>
+            <key>WirelessMode</key>
+            <string>Auto</string>
+            <key>WakeOnMagicPacket</key>
+            <true/>
+            <key>RoamingSensitivity</key>
+            <integer>3</integer>
+        </dict>
+    </dict>
+    <key>OSBundleLibraries</key>
+    <dict>
+        <key>com.apple.iokit.IOPCIFamily</key>
+        <string>1.0.0b1</string>
+        <key>com.apple.kpi.iokit</key>
+        <string>8.0.0</string>
+        <key>com.apple.kpi.libcm</key>
+        <string>8.0.0</string>
+    </dict>
+</dict>
+</plist>
