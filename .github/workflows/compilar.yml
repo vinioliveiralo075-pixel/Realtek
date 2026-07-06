@@ -19,10 +19,19 @@ jobs:
       run: |
         make
 
-    - name: Upload dos Arquivos da Kext
+    - name: Estruturar a Kext Corretamente
+      run: |
+        # Cria a árvore de pastas correta: Kext -> Contents -> MacOS
+        mkdir -p RTL8723BE.kext/Contents/MacOS
+        
+        # Move o arquivo de configuração (.plist) para a Contents
+        mv Info.plist RTL8723BE.kext/Contents/
+        
+        # Move o executável binário final para a MacOS
+        mv RTL8723BE RTL8723BE.kext/Contents/MacOS/
+
+    - name: Upload da Kext Pronta
       uses: actions/upload-artifact@v4
       with:
-        name: RTL8723BE-Driver-Vini
-        path: |
-          *.o
-          Info.plist
+        name: RTL8723BE-Kext-Pronta
+        path: RTL8723BE.kext/
