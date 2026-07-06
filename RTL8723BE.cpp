@@ -33,7 +33,7 @@ bool RTL8723BE::start(IOService *provider) {
     pciDevice = OSDynamicCast(IOPCIDevice, provider);
     if (!pciDevice) return false;
 
-    // CORREÇÃO: Ativando barramento PCI com comandos modernos do macOS Monterey/Ventura
+    // Ativando barramento PCI com comandos modernos do macOS Monterey/Ventura
     pciDevice->setMemoryEnable(true);
     pciDevice->setBusLeadEnable(true); 
 
@@ -76,7 +76,7 @@ void RTL8723BE::stop(IOService *provider) {
     unmapHardwareMemory();
 
     if (pciDevice) {
-        // CORREÇÃO: Desligando barramento PCI com comandos atualizados
+        // Desligando barramento PCI com comandos atualizados
         pciDevice->setBusLeadEnable(false);
         pciDevice->setMemoryEnable(false);
     }
@@ -145,12 +145,12 @@ bool RTL8723BE::uploadFirmware() {
     for (uint32_t i = 0; i < rtl8723be_fw_bin_len; i += 4) {
         uint32_t dword = rtl8723be_fw_bin[i];
         
-        // CORREÇÃO: Cast explícito via static_cast impede os warnings de sinal de bit
+        // Cast explícito via static_cast impede os warnings de sinal de bit
         if (i + 1 < rtl8723be_fw_bin_len) dword |= (static_cast<uint32_t>(rtl8723be_fw_bin[i + 1]) << 8);
         if (i + 2 < rtl8723be_fw_bin_len) dword |= (static_cast<uint32_t>(rtl8723be_fw_bin[i + 2]) << 16);
         if (i + 3 < rtl8723be_fw_bin_len) dword |= (static_cast<uint32_t>(rtl8723be_fw_bin[i + 3]) << 24);
         
-        // Desloca o firmware escrevendo nos blocos de registradores MMIO (exemplo padrão do chip)
+        // Desloca o firmware escrevendo nos blocos de registradores MMIO
         write32(0x1F80 + (i / 4) * 4, dword);
     }
     
@@ -179,8 +179,4 @@ void RTL8723BE::handleInterrupt(IOInterruptEventSource* source, int count) {
     if (intStatus) {
         write32(0x100, intStatus); // Limpa e confirma recepção da IRQ no chip
     }
-}
-
-IOWorkLoop* RTL8723BE::getWorkLoop() const {
-    return workLoop;
 }
