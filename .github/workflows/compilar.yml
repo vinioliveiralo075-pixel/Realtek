@@ -8,7 +8,6 @@ on:
 
 jobs:
   build:
-    # Define o servidor como o macOS mais recente disponível no GitHub
     runs-on: macos-latest
 
     steps:
@@ -21,17 +20,18 @@ jobs:
 
     - name: Estruturar a Kext Corretamente
       run: |
-        # Cria a árvore de pastas correta: Kext -> Contents -> MacOS
+        # Cria a árvore de pastas correta
         mkdir -p RTL8723BE.kext/Contents/MacOS
         
-        # Move o arquivo de configuração (.plist) para a Contents
-        mv Info.plist RTL8723BE.kext/Contents/
+        # Copia os arquivos para dentro da estrutura
+        cp Info.plist RTL8723BE.kext/Contents/
+        cp RTL8723BE RTL8723BE.kext/Contents/MacOS/
         
-        # Move o executável binário final para a MacOS
-        mv RTL8723BE RTL8723BE.kext/Contents/MacOS/
+        # Compacta a pasta inteira em um arquivo .zip real para o GitHub não espalhar os arquivos
+        zip -r RTL8723BE.kext.zip RTL8723BE.kext/
 
-    - name: Upload da Kext Pronta
+    - name: Upload da Kext Compactada
       uses: actions/upload-artifact@v4
       with:
         name: RTL8723BE-Kext-Pronta
-        path: RTL8723BE.kext/
+        path: RTL8723BE.kext.zip
