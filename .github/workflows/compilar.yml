@@ -1,0 +1,20 @@
+name: Validar Compilação no macOS
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    # Define o servidor como o macOS mais recente disponível no GitHub
+    runs-on: macos-latest
+
+    steps:
+    - name: Baixar o código do repositório
+      uses: actions/checkout@v4
+
+    - name: Compilar o Driver com o Makefile
+      run: |
+        make
