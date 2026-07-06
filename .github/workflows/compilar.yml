@@ -18,3 +18,10 @@ jobs:
     - name: Compilar o Driver com o Makefile
       run: |
         make
+        - name: Upload dos Arquivos da Kext
+      uses: actions/upload-artifact@v4
+      with:
+        name: RTL8723BE-Driver-Vini
+        path: |
+          *.o
+          Info.plist
