@@ -4,7 +4,7 @@
 #include <libkern/libkern.h>
 #include <IOKit/IOService.h>
 #include <IOKit/pci/IOPCIDevice.h>
-#include <IOKit/IOMemoryDescriptor.h> // Substitui o IOMemoryMap.h que não existia separado
+#include <IOKit/IOMemoryDescriptor.h> 
 #include <IOKit/IOWorkLoop.h>
 #include <IOKit/IOInterruptEventSource.h>
 
@@ -13,7 +13,7 @@ class RTL8723BE : public IOService {
     
 private:
     IOPCIDevice* pciDevice;
-    IOMemoryMap* memoryMap; // Continua funcionando perfeitamente aqui
+    IOMemoryMap* memoryMap;
     volatile uint8_t* mmioBase;
     uint32_t                  subsystemID;
 
