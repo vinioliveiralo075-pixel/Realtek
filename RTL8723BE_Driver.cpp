@@ -1,5 +1,6 @@
 #include <libkern/libkern.h>
 #include <IOKit/IOService.h>
+#include <IOKit/IOLib.h>       // <--- Adicione esta linha aqui para ativar o IOLog
 
 class com_vini_driver_RTL8723BE : public IOService {
     OSDeclareDefaultStructors(com_vini_driver_RTL8723BE)
